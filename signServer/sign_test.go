@@ -3,14 +3,14 @@ package signServer
 import (
 	"context"
 	"fmt"
-	redis2 "github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v8"
 	"testing"
 	"time"
 )
 
-func redisClient() *redis2.Client {
+func redisClient() *redis.Client {
 
-	conn := redis2.NewClient(&redis2.Options{
+	conn := redis.NewClient(&redis.Options{
 		Addr: "127.0.0.1:6379",
 	})
 	err := conn.Ping(context.Background()).Err()
@@ -60,12 +60,12 @@ func TestSign(t *testing.T) {
 	key := getUserKey(7)
 	offset := getTodayNum()
 	GetTodayTotalNum()
-	seta, err := redis().SetBit(context.Background(), key, offset, 1).Result()
+	seta, err := rdb.SetBit(context.Background(), key, offset, 1).Result()
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println(seta)
-	result, err := redis().BitField(context.Background(), key, "get", "u16", offset-15).Result()
+	result, err := rdb.BitField(context.Background(), key, "get", "u16", offset-15).Result()
 	if err != nil {
 		panic(err)
 	}

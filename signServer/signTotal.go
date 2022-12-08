@@ -11,7 +11,7 @@ var CurrentKey string
 // 返回当前第几个签到
 func SignToday() int64 {
 	key := getKeyTotalToday()
-	result, err := redis().Incr(context.Background(), key).Result()
+	result, err := rdb().Incr(context.Background(), key).Result()
 	if err != nil {
 		panic(err)
 	}
@@ -19,7 +19,7 @@ func SignToday() int64 {
 	// 防止试过过多
 	if CurrentKey != key {
 		// 一个月失效
-		_, err := redis().Expire(context.Background(), key, time.Hour*24*30).Result()
+		_, err := rdb().Expire(context.Background(), key, time.Hour*24*30).Result()
 		if err != nil {
 			panic(err)
 		}
@@ -34,7 +34,7 @@ func SignToday() int64 {
 func SignGetTodayNum() int64 {
 
 	key := getKeyTotalToday()
-	result, err := redis().Get(context.Background(), key).Int64()
+	result, err := rdb().Get(context.Background(), key).Int64()
 	if err != nil {
 		panic(err)
 	}

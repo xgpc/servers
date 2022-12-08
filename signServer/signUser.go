@@ -3,11 +3,12 @@ package signServer
 import (
 	"context"
 	"errors"
+	"github.com/go-redis/redis/v8"
 	"time"
 )
 
 const (
-	Sign3Day = 7   // 7 => 0000 0111
+	Sign3Day = 7   // 7     => 0000 0111
 	Sign7Day = 127 // 127   => 01111 1111
 )
 
@@ -15,7 +16,7 @@ const (
 func SignUser(userID uint32) (int64, error) {
 	offset := getTodayNum()
 	key := getUserKey(userID)
-	result, err := redis().SetBit(context.Background(), key, offset, 1).Result()
+	result, err := rdb().SetBit(context.Background(), key, offset, 1).Result()
 	if err != nil {
 		panic(err)
 	}
@@ -37,11 +38,30 @@ func saveDB(id uint32) {
 	// TODO: 暂不实现
 }
 
+// SignUserCount 已打卡次数
+//  start:0  end:-1 统计所有
+//  统计近7天->  start:getTodayNum() - 6
+//  0000 0000
+//          ^
+//  7654 3210  计数从下标开始
+func SignUserCount(userID uint32, start, end int64) int64 {
+	key := getUserKey(userID)
+	result, err := rdb().BitCount(context.Background(), key, &redis.BitCount{
+		Start: start,
+		End:   end,
+	}).Result()
+	if err != nil {
+		panic(err)
+	}
+
+	return result
+}
+
 // SignUserCheckToday 今日是否已经打卡
 func SignUserCheckToday(userID uint32) bool {
 	offset := getTodayNum()
 	key := getUserKey(userID)
-	result, err := redis().GetBit(context.Background(), key, offset).Result()
+	result, err := rdb().GetBit(context.Background(), key, offset).Result()
 	if err != nil {
 		panic(err)
 	}
@@ -49,14 +69,15 @@ func SignUserCheckToday(userID uint32) bool {
 	return result == 1
 }
 
-// SignUserGetUint8 获取近8日打卡数据
-func SignUserGetUint8(userID uint32) []int64 {
+// SignUserGetUint16 获取近16日打卡数据
+func SignUserGetUint16(userID uint32) []int64 {
 	offset := getTodayNum()
 	key := getUserKey(userID)
-
+	//                     15-----98-7654-3210
+	//                     ^                 ^
 	// 0000 0000 0000 0000 0000 0000 0000 0000
-	//                       ^        ^  = 7  从0开始计数
-	result, err := redis().BitField(context.Background(), key, "get", "u16", offset-15).Result()
+	//                                       从0开始计数
+	result, err := rdb().BitField(context.Background(), key, "get", "u16", offset-15).Result()
 	if err != nil {
 		panic(err)
 	}
@@ -84,9 +105,15 @@ type SignData struct {
 }
 
 // SignUserGetInfo 获取近8日打卡情况
+//  近3/7天打卡情况, 通过&来计算
+//  0111 1100 1001 0000
+//                    &
+//  0000 0000 0111 1111
+//                    =
+//  0000 0000 0001 0000     只有打卡数据末尾都是1的情况才能拿到数据
 func SignUserGetInfo(userID uint32) (*SignData, error) {
 	var res SignData
-	list := SignUserGetUint8(userID)
+	list := SignUserGetUint16(userID)
 	// 正常情况只有一条
 	if len(list) < 1 {
 		return nil, errors.New("打卡数据失败, 请联系管理员")
@@ -95,7 +122,8 @@ func SignUserGetInfo(userID uint32) (*SignData, error) {
 	// 取前14天数据 进行连续打卡判断
 	var num int
 	data := list[0]
-	// 近7天数据
+	// 近7天数据是否连续打卡
+
 	if data&Sign7Day == Sign7Day {
 		res.Consecutive7 = true
 	}
@@ -106,9 +134,8 @@ func SignUserGetInfo(userID uint32) (*SignData, error) {
 
 	// 不计算当天
 	data = data >> 1
-
 	// 0000 0000 0000 0001
-	//                  0<-  下标从0开始, 所以是倒叙来的, 但是不计算当天打卡.
+	//                   0<-  下标从0开始, 所以是倒叙来的, 但是不计算当天打卡.
 	for i := 1; i < 16; i++ {
 		var info SignInfo
 		t := time.Now()

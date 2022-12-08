@@ -1,13 +1,13 @@
 package signServer
 
 import (
-	redis2 "github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v8"
 	"gorm.io/gorm"
 )
 
 var (
 	_db  *gorm.DB
-	_rdb *redis2.Client
+	_rdb *redis.Client
 )
 
 const (
@@ -15,7 +15,7 @@ const (
 	TagUser       = "sign:user"  // 签到人
 )
 
-func Init(db *gorm.DB, rdb *redis2.Client) {
+func Init(db *gorm.DB, rdb *redis.Client) {
 	_rdb = rdb
 	_db = db
 }
@@ -24,6 +24,6 @@ func db() *gorm.DB {
 	return _db
 }
 
-func redis() *redis2.Client {
+func rdb() *redis.Client {
 	return _rdb
 }
