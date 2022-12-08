@@ -14,7 +14,7 @@ const (
 
 // SignUser 人员打卡, 返回今日第几个签到
 func SignUser(userID uint32) (int64, error) {
-	offset := getTodayNum()
+	offset := getTodayNum() - conf().NumDaysAgo
 	key := getUserKey(userID)
 	result, err := rdb().SetBit(context.Background(), key, offset, 1).Result()
 	if err != nil {
@@ -59,7 +59,7 @@ func SignUserCount(userID uint32, start, end int64) int64 {
 
 // SignUserCheckToday 今日是否已经打卡
 func SignUserCheckToday(userID uint32) bool {
-	offset := getTodayNum()
+	offset := getTodayNum() - conf().NumDaysAgo
 	key := getUserKey(userID)
 	result, err := rdb().GetBit(context.Background(), key, offset).Result()
 	if err != nil {
@@ -71,7 +71,7 @@ func SignUserCheckToday(userID uint32) bool {
 
 // SignUserGetUint16 获取近16日打卡数据
 func SignUserGetUint16(userID uint32) []int64 {
-	offset := getTodayNum()
+	offset := getTodayNum() - conf().NumDaysAgo
 	key := getUserKey(userID)
 	//                     15-----98-7654-3210
 	//                     ^                 ^

@@ -56,9 +56,9 @@ func TestBit(t *testing.T) {
 
 func TestSign(t *testing.T) {
 	rdb := redisClient()
-	Init(nil, rdb)
+	Init(nil, rdb, nil)
 	key := getUserKey(7)
-	offset := getTodayNum()
+	offset := getTodayNum() - conf().NumDaysAgo
 	GetTodayTotalNum()
 	seta, err := rdb.SetBit(context.Background(), key, offset, 1).Result()
 	if err != nil {
